@@ -1,0 +1,51 @@
+1. MATCH p=shortestPath((t:town {name:"Darjeeling"})-[*]-(peak:peak {name:"Sandakphu"})) 
+WHERE  ALL (r IN relationships(p)  WHERE  r.winter='true')
+RETURN p
+
+2. MATCH p = ((d:town {name:"Darjeeling"})-[r:trek*]-(s:peak {name:"Sandakphu"})) UNWIND RELATIONSHIPS(p) AS rel 
+WITH p, COUNT(DISTINCT rel.name) AS nRoutes 
+RETURN p, nRoutes 
+ORDER BY nRoutes
+
+3. MATCH (d:town { name: "Darjeeling" })-[r:twowheeler {summer: "true"}]->(goal)  RETURN goal
+
+(no changes, no records)
+
+4.  	MATCH (n:Airport)-[r:ORIGIN]-(m) RETURN n, COUNT(r) as departures ORDER BY departures ASC
+
+5. MATCH (a1:Airport)<-[:ORIGIN]-(f:Flight)-[:DESTINATION]->(a2:Airport), (f)<-[:ASSIGN]-(t:Ticket)
+WITH a1, a2, f, min(t.price) as minPrice
+MATCH (f)<-[:ASSIGN]-(tic:Ticket {price: minPrice})
+WITH a1, a2, f, tic
+CREATE (a1)-[cheapestFlight:CHEAPEST_FLIGHT {airline:f.airline, date: f.date, duration: f.duration, distance: f.distance, price: tic.price, class:tic.class}]->(a2)
+RETURN cheapestFlight
+MATCH a=(a1:Airport {name: "LAX"})-[cheapestFlight:CHEAPEST_FLIGHT*..5]->(a2:Airport), ()-[origin:ORIGIN]->(a1:Airport ) 
+WITH a, a2, reduce(tp=0, rel IN relationships(a)|tp + rel.price) as p WHERE p  < 3000 return distinct a2
+
+6. MATCH a = (a1:Airport {name: "LAX"})-[cheapestFlight:CHEAPEST_FLIGHT*..5]->(a2:Airport{name: "DAY"}),
+ ()-[:ORIGIN]->(a1:Airport), ()-[:DESTINATION]->(a2:Airport) 
+ return a, reduce(tp=0, rel IN relationships(a)|tp + rel.price)  as p ORDER BY p ASC
+ 
+(no changes, no records)
+
+7. MATCH a = (a1:Airport {name: "LAX"})-[cheapestFlight:CHEAPEST_FLIGHT*..5]->(a2:Airport{name: "DAY"}),
+()-[:ORIGIN]->(a1:Airport ), ()-[:DESTINATION]->(a2:Airport)
+WITH a, cheapestFlight, reduce(tp=0, rel IN relationships(a)|tp + rel.price) as p RETURN a, p ORDER BY p LIMIT 1
+
+(no changes, no records)
+
+8. MATCH a = (a1:Airport {name: "LAX"})-[cheapestFlight:CHEAPEST_FLIGHT*..5 {class: "business"}]->(a2:Airport{name: "DAY"}),
+()-[:ORIGIN]->(a1:Airport ), ()-[:DESTINATION]->(a2:Airport)
+WITH a, cheapestFlight, reduce(tp=0, rel IN relationships(a)|tp + rel.price) as p RETURN a, p ORDER BY p LIMIT 1
+
+(no changes, no records)
+
+9. MATCH (f:Flight) WITH DISTINCT  f.airline AS airline
+MATCH (f1:Flight)-[:ORIGIN]->(a1:Airport),
+(f2:Flight)-[:DESTINATION]->(a2:Airport)
+WHERE  f1.airline=airline AND f2.airline=airline
+RETURN airline,count(distinct(a1)) AS NumOriginCity,count(distinct(a2)) AS NumDestCity
+
+10. MATCH a = (a1:Airport)-[:CHEAPEST_FLIGHT]->(a2:Airport)-[:CHEAPEST_FLIGHT]->(a3:Airport)
+WITH a, reduce(tp=0, rel IN relationships(a)|tp + rel.price) as p WHERE a1<>a3  
+RETURN a, p ORDER BY p LIMIT 1
